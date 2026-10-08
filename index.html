@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تطبيق المتجر وقاعدة الباركود</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- مكتبة html5-qrcode لمسح الباركود بالكاميرا وقراءة الصور -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+:root {
+  --ink: #111116;
+  --paper: #ffffff;
+  --mist: #f3f4f6;
+  --line: #e5e7eb;
+  --hot: #ff4d2e;
+  --hot2: #ff8a3d;
+  --purple: #8a2c3c;
+  --muted: #8a8a93;
+  --success: #10b981;
+  --card-bg: rgba(255, 255, 255, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', system-ui, sans-serif; }
+html, body { height: 100%; background: #0d0d14; color: #fff; }
+
+.app {
+  max-width: 540px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: linear-gradient(165deg, #12121c 0%, #251633 35%, #581d2f 70%, #e64522 120%);
+  position: relative;
+  overflow-x: hidden;
+  padding: 16px 16px 85px; /* مساحة متوفرة للشريط السفلي */
+}
+
+/* خلفية جمالية */
+.app::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  left: -90px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.app > * { position: relative; z-index: 1; }
+
+/* الشريط العلوي */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.brand {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-tag {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-weight: 600;
+}
+
+/* شريط التنقل الرئيسي */
+.nav-bar {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 18px;
+  padding: 5px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  gap: 4px;
+}
+.nav-btn {
+  flex: 1;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 4px;
+  border-radius: 14px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.nav-btn.active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* أزرار وسرعة البحث */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+  backdrop-filter: blur(6px);
+}
+.search-box input {
+  border: 0;
+  outline: 0;
+  flex: 1;
+  font: inherit;
+  font-size: 14px;
+  background: none;
+  color: #fff;
+}
+.search-box input::placeholder { color: rgba(255, 255, 255, 0.6); }
+
+.scan-trigger-btn {
+  background: linear-gradient(135deg, var(--hot), var(--hot2));
+  border: 0;
+  color: #fff;
+  border-radius: 12px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 10px rgba(255, 77, 46, 0.3);
+}
+
+.banner {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border-radius: 20px;
+  padding: 20px 18px;
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.banner h1 { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.banner p { color: rgba(255, 255, 255, 0.75); font-size: 13px; margin-top: 4px; }
+
+/* شبكة الكروت للمنتجات */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card {
+  border: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  color: #fff;
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  transition: transform 0.15s, background 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.card:active { transform: scale(0.97); }
+.thumb {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,0.3));
+}
+.card h3 { font-size: 14px; font-weight: 700; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barcode-badge {
+  display: inline-block;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffd082;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-family: monospace;
+  direction: ltr;
+}
+.price { font-weight: 800; font-size: 18px; color: #fff; }
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 40px 10px;
+  line-height: 1.8;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 18px;
+  border: 1px dashed rgba(255,255,255,0.2);
+}
+
+/* الألواح والنوافذ (Admin & Barcode DB) */
+.panel {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  border-radius: 22px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+}
+.panel h2 { font-size: 18px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+label { display: block; font-size: 13px; font-weight: 700; color: #4b5563; margin: 10px 0 4px; }
+input[type=text], input[type=password], input[type=number] {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 14px;
+  outline: 0;
+  background: #fff;
+  color: var(--ink);
+}
+input:focus { border-color: var(--hot); }
+
+.input-with-btn {
+  display: flex;
+  gap: 8px;
+}
+.input-with-btn input { flex: 1; }
+.scan-fill-btn {
+  background: var(--ink);
+  color: #fff;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.drop {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2.3;
+  border: 2px dashed var(--line);
+  border-radius: 16px;
+  cursor: pointer;
+  color: var(--muted);
+  overflow: hidden;
+  font-size: 13px;
+  background: var(--mist);
+  transition: border-color 0.2s;
+}
+.drop:hover { border-color: var(--hot); }
+.drop img { width: 100%; height: 100%; object-fit: contain; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--mist);
+}
+.row:first-of-type { border-top: 0; }
+.row img { width: 50px; height: 50px; border-radius: 10px; object-fit: contain; background: var(--mist); }
+.row div { flex: 1; min-width: 0; }
+.row b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.row small { color: var(--muted); font-size: 12px; font-family: monospace; }
+.del {
+  border: 0;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* النوافذ المنبثقة الشيت والشاشة المظلمة */
+.sheet {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+.sheet.open { display: flex; }
+.sheet .in {
+  background: #fff;
+  color: var(--ink);
+  width: 100%;
+  max-width: 540px;
+  border-radius: 28px 28px 0 0;
+  padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  animation: up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+@keyframes up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.big {
+  position: relative;
+  aspect-ratio: 1.2;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--mist);
+  margin-bottom: 12px;
+}
+.big img { width: 100%; height: 100%; object-fit: contain; }
+
+.sheet h2 { font-size: 20px; font-weight: 800; }
+.sheet .p { font-size: 28px; font-weight: 800; color: var(--hot); }
+.sheet .code-tag {
+  display: inline-block;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #4b5563;
+  margin: 6px 0 12px;
+}
+
+.btn {
+  border: 0;
+  font: inherit;
+  font-weight: 800;
+  font-size: 15px;
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.btn.dark { background: var(--ink); color: #fff; }
+.btn.soft { background: var(--mist); color: var(--ink); }
+.btn.primary { background: linear-gradient(135deg, var(--hot), var(--hot2)); color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* خيارات ممسحة الباركود Scanner Modal */
+.scanner-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 16px;
+}
+.scanner-modal.open { display: flex; }
+.scanner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #fff;
+}
+.scanner-header h3 { font-size: 18px; font-weight: 800; }
+.close-scan {
+  background: rgba(255,255,255,0.2);
+  border: 0;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.scanner-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 16px 0;
+}
+#interactive-reader {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #000;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+
+.scan-options {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.scan-opt-btn {
+  flex: 1;
+  padding: 12px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* التنبيهات Toast */
+.toast {
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: #18181b;
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 300;
+  display: none;
+  max-width: 90%;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- العنونة العلوية -->
+  <div class="top">
+    <div class="brand">
+      <span>المتجر الذكي</span>
+      <span class="brand-tag">باركود PRO</span>
+    </div>
+  </div>
+
+  <!-- شريط التنقل السفلي/الأعلى للتبويب -->
+  <nav class="nav-bar">
+    <button id="tabClient" class="nav-btn active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      العميل
+    </button>
+    <button id="tabBarcode" class="nav-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 5v14M8 5v14M12 5v14M17 5v14M21 5v14"/></svg>
+      قاعدة الباركود
+    </button>
+    <button id="tabAdmin" class="nav-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      الإدارة
+    </button>
+  </nav>
+
+  <!-- 1. قسم العميل Client View -->
+  <section id="secClient">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="qClient" type="text" placeholder="ابحث باسم المنتج أو السعر...">
+      <button class="scan-trigger-btn" id="btnScanMain">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        مسح
+      </button>
+    </div>
+
+    <div class="banner">
+      <h1>تصفح المنتجات</h1>
+      <p>ابحث أو امسح الباركود للوصول السريع إلى تفاصيل وأسعار المنتجات</p>
+    </div>
+
+    <div class="grid" id="gridClient"></div>
+  </section>
+
+  <!-- 2. قسم قاعدة بيانات الباركود Barcode DB View -->
+  <section id="secBarcode" class="hidden">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="qBarcode" type="text" placeholder="ابحث بالباركود أو اسم السلعة...">
+      <button class="scan-trigger-btn" id="btnScanDb">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+        مسح
+      </button>
+    </div>
+
+    <div class="panel">
+      <h2>
+        <span>إضافة سلعة مع باركود</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      </h2>
+      
+      <label>رمز الباركود (Barcode / UPC / EAN)</label>
+      <div class="input-with-btn">
+        <input id="bcCode" type="text" placeholder="مثال: 6291100123456">
+        <button class="scan-fill-btn" id="btnScanToInput">مسح ضوئي</button>
+      </div>
+
+      <label>اسم السلعة</label>
+      <input id="bcName" type="text" placeholder="مثال: عصير برتقال طبيعي">
+
+      <label>السعر</label>
+      <input id="bcPrice" type="number" min="0" step="any" placeholder="مثال: 15.50">
+
+      <label>صورة السلعة</label>
+      <label class="drop" id="bcDrop">
+        <span id="bcDropTxt">اضغط لاختيار صورة السلعة</span>
+        <input id="bcFile" type="file" accept="image/*" hidden>
+      </label>
+
+      <div style="height:14px"></div>
+      <button class="btn primary" id="btnAddBarcode">حفظ في قاعدة الباركود</button>
+    </div>
+
+    <div class="panel">
+      <h2>سجل المنتجات المرتبطة بالباركود</h2>
+      <div id="listBarcode"></div>
+    </div>
+  </section>
+
+  <!-- 3. قسم الإدارة Admin View -->
+  <section id="secAdmin" class="hidden">
+    <div id="gate" class="panel hidden">
+      <h2>الرمز السري للإدارة</h2>
+      <input id="pin" type="password" placeholder="أدخل الرمز السري" inputmode="numeric">
+      <div style="height:12px"></div>
+      <button class="btn dark" id="pinBtn">دخول</button>
+    </div>
+
+    <div id="manage">
+      <div class="panel">
+        <h2>إضافة منتج سريع</h2>
+        <label>صورة المنتج</label>
+        <label class="drop" id="dropAdmin"><span id="dropTxtAdmin">اضغط لاختيار صورة</span><input id="fileAdmin" type="file" accept="image/*" hidden></label>
+        
+        <label>اسم المنتج</label>
+        <input id="nameAdmin" type="text" placeholder="مثال: حذاء رياضي">
+        
+        <label>السعر</label>
+        <input id="priceAdmin" type="number" min="0" step="any" placeholder="مثال: 149">
+        
+        <label>رمز الباركود (اختياري)</label>
+        <input id="codeAdmin" type="text" placeholder="يمكنك ترك الحقل فارغاً أو إدخاله">
+        
+        <div style="height:16px"></div>
+        <button class="btn dark" id="addAdmin">إضافة المنتج</button>
+      </div>
+
+      <div class="panel">
+        <h2>جميع المنتجات المخزنة</h2>
+        <div id="listAdmin"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- نافذة تفاصيل المنتج (Sheet) -->
+<div class="sheet" id="sheet">
+  <div class="in">
+    <div class="big"><img id="sImg" src="" alt="صورة المنتج"></div>
+    <div id="sCode" class="code-tag"></div>
+    <h2 id="sName"></h2>
+    <div class="p" id="sPrice"></div>
+    <div style="height:16px"></div>
+    <button class="btn soft" id="sClose">إغلاق</button>
+  </div>
+</div>
+
+<!-- نافذة ماسح الباركود (الكاميرا / إرفاق صورة) -->
+<div class="scanner-modal" id="scannerModal">
+  <div class="scanner-header">
+    <h3>مسح الباركود / QR Code</h3>
+    <button class="close-scan" id="btnCloseScanner">✕</button>
+  </div>
+
+  <div class="scanner-body">
+    <div id="interactive-reader"></div>
+  </div>
+
+  <div class="scan-options">
+    <button class="scan-opt-btn" id="btnToggleCamera">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      الكاميرا الحية
+    </button>
+    
+    <label class="scan-opt-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      رفع صورة باركود
+      <input type="file" id="barcodeImgInput" accept="image/*" hidden>
+    </label>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== الإعدادات الثابتة =====
+const SUPABASE_URL = "https://iuclootkunogsreaampr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_efeOJYJphIJwkRo5Fy9uLw_J1u4e-a2";
+const TABLE = "Store";
+const REQUIRE_PIN = false;
+const ADMIN_PIN = "1234";
+const CURRENCY = "$";
+
+const H = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
+const API = SUPABASE_URL + "/rest/v1/" + TABLE;
+
+const $ = id => document.getElementById(id);
+
+let items = [];
+let photoAdmin = "";
+let photoBarcode = "";
+let unlocked = !REQUIRE_PIN;
+
+// متغيرات الماسح الضوئي
+let html5QrcodeScanner = null;
+let currentScanTarget = "search"; // 'search' أو 'input'
+
+// ===== التنبيهات والأدوات المساعدة =====
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => t.style.display = "none", 3200);
+}
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+}[c]));
+
+const money = v => {
+  const n = Number(v);
+  return (isNaN(n) ? esc(v) : n.toLocaleString("en-US")) + " " + CURRENCY;
+};
+
+// ===== جلب البيانات من السيرفر =====
+async function load() {
+  try {
+    const r = await fetch(API + "?select=*&order=created_at.desc", { headers: H });
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+    items = await r.json();
+  } catch (e) {
+    toast("تعذّر تحميل المنتجات: " + e.message);
+    items = [];
+  }
+  render();
+}
+
+// ===== عرض البيانات في كافة الواجهات =====
+function render() {
+  renderClient();
+  renderBarcodeDB();
+  renderAdminList();
+}
+
+// 1. عرض واجهة العميل
+function renderClient() {
+  const q = $("qClient").value.trim().toLowerCase();
+  const filtered = items.filter(i => 
+    (i.Item_name || "").toLowerCase().includes(q) ||
+    (i.barcode || "").toLowerCase().includes(q)
+  );
+
+  $("gridClient").innerHTML = filtered.length ? filtered.map(i => `
+    <button class="card" data-id="${i.id}">
+      <div>
+        <div class="thumb">
+          ${i.Item_photo ? `<img src="${esc(i.Item_photo)}" alt="" loading="lazy">` : ""}
+        </div>
+        ${i.barcode ? `<div class="barcode-badge"># ${esc(i.barcode)}</div>` : ''}
+        <h3>${esc(i.Item_name)}</h3>
+      </div>
+      <div class="price">${money(i.Item_price)}</div>
+    </button>
+  `).join("") : `<div class="empty">لا توجد منتجات مطابقة.<br>جرّب البحث بكلمة أخرى أو مسح الباركود.</div>`;
+}
+
+// 2. عرض واجهة قاعدة بيانات الباركود
+function renderBarcodeDB() {
+  const q = $("qBarcode").value.trim().toLowerCase();
+  const filtered = items.filter(i => 
+    (i.Item_name || "").toLowerCase().includes(q) ||
+    (i.barcode || "").toLowerCase().includes(q)
+  );
+
+  $("listBarcode").innerHTML = filtered.length ? filtered.map(i => `
+    <div class="row">
+      <img src="${esc(i.Item_photo || "")}" alt="">
+      <div>
+        <b>${esc(i.Item_name)}</b>
+        <small>الباركود: ${i.barcode ? esc(i.barcode) : 'غير مسجل'}</small>
+        <div style="color:var(--hot); font-weight:700; font-size:13px">${money(i.Item_price)}</div>
+      </div>
+      <button class="del" data-del="${i.id}">حذف</button>
+    </div>
+  `).join("") : `<div style="color:var(--muted);text-align:center;padding:16px">لا توجد منتجات مسجلة في قاعدة الباركود</div>`;
+}
+
+// 3. عرض واجهة الإدارة
+function renderAdminList() {
+  $("listAdmin").innerHTML = items.length ? items.map(i => `
+    <div class="row">
+      <img src="${esc(i.Item_photo || "")}" alt="">
+      <div>
+        <b>${esc(i.Item_name)}</b>
+        <span style="color:var(--muted); font-size:12px;">${money(i.Item_price)} ${i.barcode ? `| #${esc(i.barcode)}` : ''}</span>
+      </div>
+      <button class="del" data-del="${i.id}">حذف</button>
+    </div>
+  `).join("") : `<div style="color:var(--muted);text-align:center;padding:12px">لا توجد منتجات بعد</div>`;
+}
+
+// ===== التنقل بين الأقسام =====
+function switchTab(tab) {
+  $("secClient").classList.toggle("hidden", tab !== "client");
+  $("secBarcode").classList.toggle("hidden", tab !== "barcode");
+  $("secAdmin").classList.toggle("hidden", tab !== "admin");
+
+  $("tabClient").classList.toggle("active", tab === "client");
+  $("tabBarcode").classList.toggle("active", tab === "barcode");
+  $("tabAdmin").classList.toggle("active", tab === "admin");
+
+  if (tab === "admin") {
+    $("gate").classList.toggle("hidden", unlocked);
+    $("manage").classList.toggle("hidden", !unlocked);
+  }
+}
+
+$("tabClient").onclick = () => switchTab("client");
+$("tabBarcode").onclick = () => switchTab("barcode");
+$("tabAdmin").onclick = () => switchTab("admin");
+
+$("pinBtn").onclick = () => {
+  if ($("pin").value === ADMIN_PIN) {
+    unlocked = true;
+    switchTab("admin");
+  } else {
+    toast("الرمز السري غير صحيح");
+  }
+};
+
+// ===== معالجة الصور ورفعها (ضغط الصورة وحفظها DataURL) =====
+function handleImageUpload(fileInput, dropContainer, callback) {
+  const f = fileInput.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const png = /png|webp|gif/.test(f.type);
+    const max = png ? 640 : 720;
+    const s = Math.min(1, max / Math.max(img.width, img.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(img.width * s);
+    cv.height = Math.round(img.height * s);
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    const resultPhoto = png ? cv.toDataURL("image/png") : cv.toDataURL("image/jpeg", 0.82);
+    
+    dropContainer.innerHTML = `<img src="${resultPhoto}" alt=""><input id="${fileInput.id}" type="file" accept="image/*" hidden>`;
+    callback(resultPhoto);
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(f);
+}
+
+// رفع صورة قسم الإدارة
+document.addEventListener("change", e => {
+  if (e.target.id === "fileAdmin") {
+    handleImageUpload(e.target, $("dropAdmin"), res => photoAdmin = res);
+  } else if (e.target.id === "bcFile") {
+    handleImageUpload(e.target, $("bcDrop"), res => photoBarcode = res);
+  }
+});
+
+// ===== إضافة منتج من قسم الإدارة =====
+$("addAdmin").onclick = async () => {
+  const name = $("nameAdmin").value.trim();
+  const price = $("priceAdmin").value.trim();
+  const barcode = $("codeAdmin").value.trim();
+
+  if (!name || !price || !photoAdmin) {
+    toast("يرجى إدخال الاسم والسعر وإرفاق صورة");
+    return;
+  }
+
+  $("addAdmin").disabled = true;
+  try {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { ...H, Prefer: "return=minimal" },
+      body: JSON.stringify({
+        Item_name: name,
+        Item_price: price,
+        Item_photo: photoAdmin,
+        barcode: barcode || null
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+
+    $("nameAdmin").value = "";
+    $("priceAdmin").value = "";
+    $("codeAdmin").value = "";
+    photoAdmin = "";
+    $("dropAdmin").innerHTML = `<span id="dropTxtAdmin">اضغط لاختيار صورة</span><input id="fileAdmin" type="file" accept="image/*" hidden>`;
+    
+    toast("تمت إضافة المنتج بنجاح");
+    await load();
+  } catch (e) {
+    toast("تعذّرت الإضافة: " + e.message);
+  }
+  $("addAdmin").disabled = false;
+};
+
+// ===== إضافة سلعة من قسم قاعدة الباركود =====
+$("btnAddBarcode").onclick = async () => {
+  const code = $("bcCode").value.trim();
+  const name = $("bcName").value.trim();
+  const price = $("bcPrice").value.trim();
+
+  if (!code || !name || !price || !photoBarcode) {
+    toast("أدخل كود الباركود، الاسم، السعر وأرفق صورة السلعة");
+    return;
+  }
+
+  $("btnAddBarcode").disabled = true;
+  try {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: { ...H, Prefer: "return=minimal" },
+      body: JSON.stringify({
+        barcode: code,
+        Item_name: name,
+        Item_price: price,
+        Item_photo: photoBarcode
+      })
+    });
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+
+    $("bcCode").value = "";
+    $("bcName").value = "";
+    $("bcPrice").value = "";
+    photoBarcode = "";
+    $("bcDrop").innerHTML = `<span id="bcDropTxt">اضغط لاختيار صورة السلعة</span><input id="bcFile" type="file" accept="image/*" hidden>`;
+
+    toast("تم حفظ السلعة في قاعدة الباركود");
+    await load();
+  } catch (e) {
+    toast("تعذّرت الإضافة: " + e.message);
+  }
+  $("btnAddBarcode").disabled = false;
+};
+
+// ===== حذف منتج =====
+document.addEventListener("click", async e => {
+  const delBtn = e.target.closest("[data-del]");
+  if (!delBtn) return;
+  const id = delBtn.dataset.del;
+
+  if (!confirm("هل أنت تأكد من حذف هذا المنتج؟")) return;
+
+  try {
+    const r = await fetch(API + "?id=eq." + id, { method: "DELETE", headers: H });
+    if (!r.ok) throw new Error((await r.json()).message || r.status);
+    toast("تم حذف المنتج بنجاح");
+    load();
+  } catch (err) {
+    toast("تعذّر الحذف: " + err.message);
+  }
+});
+
+// ===== ممسحة الباركود ماسح الكاميرا والصور =====
+function openScannerModal(targetMode) {
+  currentScanTarget = targetMode; // 'search' أو 'input'
+  $("scannerModal").classList.add("open");
+  startLiveCamera();
+}
+
+function stopScanner() {
+  if (html5QrcodeScanner) {
+    html5QrcodeScanner.stop().then(() => {
+      html5QrcodeScanner.clear();
+      html5QrcodeScanner = null;
+    }).catch(err => {
+      console.warn("Camera stop error:", err);
+    });
+  }
+}
+
+function closeScannerModal() {
+  stopScanner();
+  $("scannerModal").classList.remove("open");
+}
+
+function startLiveCamera() {
+  stopScanner();
+  html5QrcodeScanner = new Html5Qrcode("interactive-reader");
+  const config = { fps: 10, qrbox: { width: 250, height: 180 } };
+
+  html5QrcodeScanner.start(
+    { facingMode: "environment" },
+    config,
+    onBarcodeDetected,
+    () => {} // تجاهل الأخطاء العادية في كل إطار
+  ).catch(err => {
+    toast("تعذّر فتح الكاميرا: " + err);
+  });
+}
+
+// عند العثور على كود الباركود
+function onBarcodeDetected(decodedText) {
+  toast("تم العثور على الباركود: " + decodedText);
+  closeScannerModal();
+
+  if (currentScanTarget === "input") {
+    // تعبئة حقل الباركود في نموذج الإضافة
+    $("bcCode").value = decodedText;
+    $("codeAdmin").value = decodedText;
+  } else {
+    // البحث والتنقيب عن السلعة في البيانات
+    const found = items.find(x => String(x.barcode) === String(decodedText));
+    if (found) {
+      showProductDetails(found);
+    } else {
+      toast("الباركود غير مخزن بمتجرنا: " + decodedText);
+      // توجيه مع إمكانية إضافته مباشرة
+      $("qClient").value = decodedText;
+      $("qBarcode").value = decodedText;
+      render();
+    }
+  }
+}
+
+// مسح الباركود من خلال صورة
+$("barcodeImgInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const html5QrCode = new Html5Qrcode("interactive-reader");
+  html5QrCode.scanFile(file, true)
+    .then(decodedText => {
+      onBarcodeDetected(decodedText);
+    })
+    .catch(err => {
+      toast("تعذّر قراءة الباركود من الصورة: " + err);
+    });
+});
+
+// أزرار تشغيل الماسح الضوئي
+$("btnScanMain").onclick = () => openScannerModal("search");
+$("btnScanDb").onclick = () => openScannerModal("search");
+$("btnScanToInput").onclick = () => openScannerModal("input");
+$("btnToggleCamera").onclick = () => startLiveCamera();
+$("btnCloseScanner").onclick = () => closeScannerModal();
+
+// ===== تفاصيل المنتج Sheet Modal =====
+function showProductDetails(item) {
+  $("sImg").src = item.Item_photo || "";
+  $("sName").textContent = item.Item_name;
+  $("sPrice").textContent = money(item.Item_price);
+  $("sCode").textContent = item.barcode ? `باركود: ${item.barcode}` : "بدون باركود";
+  $("sheet").classList.add("open");
+}
+
+$("gridClient").onclick = e => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  const item = items.find(x => String(x.id) === card.dataset.id);
+  if (item) showProductDetails(item);
+};
+
+$("sClose").onclick = () => $("sheet").classList.remove("open");
+$("sheet").onclick = e => { if (e.target === $("sheet")) $("sheet").classList.remove("open"); };
+
+// أحداث البحث المباشر
+$("qClient").oninput = renderClient;
+$("qBarcode").oninput = renderBarcodeDB;
+
+// بدء تشغيل التطبيق وجلب البيانات
+load();
+</script>
+</body>
+</html>
